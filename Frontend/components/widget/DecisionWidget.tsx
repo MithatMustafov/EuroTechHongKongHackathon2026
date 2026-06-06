@@ -9,6 +9,9 @@ import { formatAmount } from "@/lib/utils";
 import { FraudMeter } from "./FraudMeter";
 import { ComplianceChecklist } from "./ComplianceChecklist";
 import { RailCard } from "./RailCard";
+import { RailSettlement } from "./RailSettlement";
+import { StablecoinSettlement, type SettlementResult } from "./StablecoinSettlement";
+import { explorerTx } from "@/lib/chain/hkdap";
 
 type Step = "select" | "analyzing" | "summary" | "payment" | "receipt" | "review";
 
@@ -24,10 +27,14 @@ export function DecisionWidget({ wide = false }: { wide?: boolean }) {
   const [step, setStep] = useState<Step>("select");
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
+  const [settlement, setSettlement] = useState<SettlementResult | null>(null);
+  const [simulateStablecoin, setSimulateStablecoin] = useState(false);
 
   const start = useCallback((inv: Invoice) => {
     setInvoice(inv);
     setDecision(null);
+    setSettlement(null);
+    setSimulateStablecoin(false);
     setStep("analyzing");
   }, []);
 
@@ -35,6 +42,8 @@ export function DecisionWidget({ wide = false }: { wide?: boolean }) {
     setStep("select");
     setInvoice(null);
     setDecision(null);
+    setSettlement(null);
+    setSimulateStablecoin(false);
   }, []);
 
   const onAnalysisDone = useCallback(() => {
@@ -84,12 +93,25 @@ export function DecisionWidget({ wide = false }: { wide?: boolean }) {
           )}
           {step === "payment" && decision && (
             <StepShell key="payment">
-              <PaymentStep decision={decision} onDone={() => setStep("receipt")} />
+              {decision.recommendedRail === "HKD_STABLECOIN" && !simulateStablecoin ? (
+                <StablecoinSettlement
+                  decision={decision}
+                  onComplete={(r) => {
+                    setSettlement(r);
+                    setStep("receipt");
+                  }}
+                  onFallback={() => setSimulateStablecoin(true)}
+                />
+              ) : decision.recommendedRail === "HKD_STABLECOIN" ? (
+                <PaymentStep decision={decision} onDone={() => setStep("receipt")} />
+              ) : (
+                <RailSettlement decision={decision} onComplete={() => setStep("receipt")} />
+              )}
             </StepShell>
           )}
           {step === "receipt" && decision && (
             <StepShell key="receipt">
-              <ReceiptStep decision={decision} onReset={reset} />
+              <ReceiptStep decision={decision} settlement={settlement} onReset={reset} />
             </StepShell>
           )}
           {step === "review" && decision && (
@@ -408,9 +430,18 @@ function PaymentStep({ decision, onDone }: { decision: Decision; onDone: () => v
 
 /* ----------------------------- Receipt ----------------------------- */
 
-function ReceiptStep({ decision, onReset }: { decision: Decision; onReset: () => void }) {
+function ReceiptStep({
+  decision,
+  settlement,
+  onReset,
+}: {
+  decision: Decision;
+  settlement: SettlementResult | null;
+  onReset: () => void;
+}) {
   const isStable = decision.recommendedRail === "HKD_STABLECOIN";
   const railLabel = decision.rails.find((r) => r.rail === decision.recommendedRail)?.label;
+  const short = (a: string) => `${a.slice(0, 8)}…${a.slice(-6)}`;
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-ok/10 p-4 text-center">
@@ -429,13 +460,31 @@ function ReceiptStep({ decision, onReset }: { decision: Decision; onReset: () =>
           <ReceiptRow label="Rail" value={railLabel ?? ""} />
           <ReceiptRow label="Fraud risk" value={`${decision.fraud.score}/100 · ${decision.fraud.level}`} />
           <ReceiptRow label="Compliance" value={decision.compliance.status} />
-          {isStable && <ReceiptRow label="Tx reference" value="0xA92…F31 (simulated)" />}
+          {settlement?.txHash ? (
+            <div className="flex justify-between border-b border-line pb-1.5">
+              <dt className="text-muted">Sepolia tx</dt>
+              <dd className="font-medium">
+                <a
+                  className="text-brand underline"
+                  href={explorerTx(settlement.txHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {short(settlement.txHash)} ↗
+                </a>
+              </dd>
+            </div>
+          ) : (
+            isStable && <ReceiptRow label="Tx reference" value="0xA92…F31 (simulated)" />
+          )}
           <ReceiptRow label="Receipt ID" value={`PR-${decision.invoice.invoiceNumber}`} />
         </dl>
       </Section>
 
       <p className="text-center text-[11px] text-muted">
-        Demo: payment execution is visualized. Stablecoin settlement is simulated, not on-chain.
+        {settlement?.txHash
+          ? "Settled live on Sepolia testnet. This is a mock HKDAP token with no value."
+          : "Demo: payment execution is visualized. Non-crypto rails are simulated."}
       </p>
 
       <button

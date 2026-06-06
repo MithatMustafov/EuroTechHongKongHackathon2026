@@ -19,12 +19,18 @@ if [ ${#PDF_FILES[@]} -eq 0 ]; then
 fi
 
 for file in "${PDF_FILES[@]}"; do
+  filename="$(basename "$file")"
+
   echo "======================================"
-  echo "Testing: $(basename "$file")"
+  echo "Testing: $filename"
   echo "======================================"
 
   if command -v jq >/dev/null 2>&1; then
-    curl -s -X POST -F "pdf=@$file" "$API_URL" | jq .
+    response="$(curl -s -X POST -F "pdf=@$file" "$API_URL")"
+    echo "Invoice:"
+    echo "$response" | jq .invoice
+    echo "Risk score:"
+    echo "$response" | jq .risk_score
   else
     curl -s -X POST -F "pdf=@$file" "$API_URL"
     echo ""

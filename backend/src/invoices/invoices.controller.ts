@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ExtractionService } from '../extraction/extraction.service';
+import { RiskScoreService } from '../risk-score/risk-score.service';
 
 type UploadedPdf = {
   buffer?: Buffer;
@@ -16,7 +17,10 @@ type UploadedPdf = {
 
 @Controller('invoices')
 export class InvoicesController {
-  constructor(private readonly extractionService: ExtractionService) {}
+  constructor(
+    private readonly extractionService: ExtractionService,
+    private readonly riskScoreService: RiskScoreService,
+  ) {}
 
   @Post('extract')
   @UseInterceptors(FileInterceptor('pdf'))
@@ -32,9 +36,11 @@ export class InvoicesController {
     const invoice = await this.extractionService.extractInvoiceFromPdf(
       new Uint8Array(pdf.buffer),
     );
+    const riskScore = this.riskScoreService.calculateRiskScore(invoice);
 
-    console.log(invoice);
-
-    return invoice;
+    return {
+      invoice,
+      risk_score: riskScore,
+    };
   }
 }

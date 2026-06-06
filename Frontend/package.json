@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "compile:contract": "node scripts/compile-contract.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "ethers": "^6.16.0",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.17.0",
     "next": "16.2.7",
@@ -25,6 +27,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.7",
+    "solc": "^0.8.35",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.8"

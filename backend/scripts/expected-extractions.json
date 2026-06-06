@@ -1,0 +1,250 @@
+{
+  "01_stablecoin_eligible.pdf": {
+    "invoice_number": "NSC-2026-1048",
+    "due_date": "2026-06-10",
+    "payer": {
+      "name": "HarbourTech Electronics Limited",
+      "country": "Hong Kong"
+    },
+    "supplier": {
+      "name": "Nordic Sensor Components ApS",
+      "country": "Denmark",
+      "email": "finance@nordicsensor.dk"
+    },
+    "payment": {
+      "amount": 42000,
+      "currency": "HKD",
+      "purpose": "Pilot batch for IoT gateway production",
+      "requested_method": "STABLECOIN",
+      "beneficiary_name": "Nordic Sensor Components ApS",
+      "destination": {
+        "value": "0x6F3A9c23B4eC8d1a9f775b07B2d342E712af89C1",
+        "network": "Licensed HKD stablecoin rail / test environment for demo",
+        "token_symbol": "HKD"
+      }
+    },
+    "risk_signals": {
+      "urgency_language": false,
+      "pressure_language": false,
+      "secrecy_language": false,
+      "payment_details_changed": false
+    }
+  },
+  "02_fraud_hold.pdf": {
+    "invoice_number": "BCG-2026-4472-R",
+    "due_date": "2026-06-06",
+    "payer": {
+      "name": "HarbourTech Electronics Limited",
+      "country": "Hong Kong"
+    },
+    "supplier": {
+      "name": "Berlin Components GmbH",
+      "country": "Germany",
+      "email": "accounts@berlin-components-payments.com"
+    },
+    "payment": {
+      "amount": 42000,
+      "currency": "HKD",
+      "purpose": "Urgent replacement shipment",
+      "requested_method": "STABLECOIN",
+      "beneficiary_name": "Global Trade Settlement Ltd.",
+      "destination": {
+        "value": "0xFaaE19bC44184291d3D71D02ef8A01734dEAD999",
+        "network": "UNKNOWN"
+      }
+    },
+    "risk_signals": {
+      "urgency_language": true,
+      "pressure_language": true,
+      "secrecy_language": true,
+      "payment_details_changed": true
+    }
+  },
+  "03_traditional_FPS.pdf": {
+    "invoice_number": "KOS-2026-0618",
+    "due_date": "2026-06-20",
+    "payer": {
+      "name": "HarbourTech Electronics Limited",
+      "country": "Hong Kong"
+    },
+    "supplier": {
+      "name": "Kowloon Office Supplies Limited",
+      "country": "Hong Kong",
+      "email": "billing@kowloonoffice.hk"
+    },
+    "payment": {
+      "amount": 7486,
+      "currency": "HKD",
+      "purpose": "Cyberport office supplies replenishment",
+      "requested_method": "FPS",
+      "beneficiary_name": "Kowloon Office Supplies Limited",
+      "destination": {
+        "fps_id": "162-882-993",
+        "proxy_type": "EMAIL",
+        "proxy_value": "payments@kowloonoffice.hk"
+      }
+    },
+    "risk_signals": {
+      "urgency_language": false,
+      "pressure_language": false,
+      "secrecy_language": false,
+      "payment_details_changed": false
+    }
+  },
+  "04_traditional_CIPS_RMB.pdf": {
+    "invoice_number": "SPM-2026-2209",
+    "due_date": "2026-06-13",
+    "payer": {
+      "name": "HarbourTech Electronics Limited",
+      "country": "Hong Kong"
+    },
+    "supplier": {
+      "name": "Shenzhen Precision Moulding Co., Ltd.",
+      "country": "China",
+      "email": "ar@szprecision-moulding.cn"
+    },
+    "payment": {
+      "amount": 176000,
+      "currency": "CNY",
+      "purpose": "Cross-border trade goods payment",
+      "requested_method": "CIPS",
+      "beneficiary_name": "Shenzhen Precision Moulding Co., Ltd.",
+      "destination": {
+        "bank_name": "Bank of China, Shenzhen Guangming Sub-branch",
+        "account_number": "755923810042610088",
+        "cnaps_code": "104584000122"
+      }
+    },
+    "risk_signals": {
+      "urgency_language": false,
+      "pressure_language": false,
+      "secrecy_language": false,
+      "payment_details_changed": false
+    }
+  },
+  "05_stablecoin_eligible.pdf": {
+    "invoice_number": "AMT-2026-1148",
+    "due_date": "2026-06-16",
+    "payer": {
+      "name": "HarbourTech Electronics Limited",
+      "country": "Hong Kong"
+    },
+    "supplier": {
+      "name": "Aurora MedTech Pte. Ltd.",
+      "country": "Singapore",
+      "email": "ar@auroramedtech.sg"
+    },
+    "payment": {
+      "amount": 57000,
+      "currency": "HKD",
+      "purpose": "Medical-grade optical sensor assemblies and calibration certificate package",
+      "requested_method": "STABLECOIN",
+      "beneficiary_name": "Aurora MedTech Pte. Ltd.",
+      "destination": {
+        "value": "0x9E8F4b2A6dC41F3A7b0e8c9d5A11C7204f6e9B31",
+        "network": "Ethereum Sepolia",
+        "token_symbol": "mHKD"
+      }
+    },
+    "risk_signals": {
+      "urgency_language": false,
+      "pressure_language": false,
+      "secrecy_language": false,
+      "payment_details_changed": false
+    }
+  },
+  "06_fraud_hold.pdf": {
+    "invoice_number": "VTE-2026-7784",
+    "due_date": "2026-06-06",
+    "payer": {
+      "name": "HarbourTech Electronics Limited",
+      "country": "Hong Kong"
+    },
+    "supplier": {
+      "name": "Valencia Textiles Export S.L.",
+      "country": "Spain",
+      "email": "finance@valencia-textiles-payments.com"
+    },
+    "payment": {
+      "amount": 33000,
+      "currency": "EUR",
+      "purpose": "Custom woven shielding sleeves and export packing",
+      "requested_method": "SWIFT",
+      "beneficiary_name": "Valencia Textiles Export S.L.",
+      "destination": {
+        "iban": "ES9121000418450200051332",
+        "swift_bic": "CAIXESBBXXX",
+        "bank_name": "Europa Commercial Bank Madrid"
+      }
+    },
+    "risk_signals": {
+      "urgency_language": true,
+      "pressure_language": true,
+      "secrecy_language": true,
+      "payment_details_changed": true
+    }
+  },
+  "07_traditional_CHATS.pdf": {
+    "invoice_number": "HMT-2026-3104",
+    "due_date": "2026-06-14",
+    "payer": {
+      "name": "HarbourTech Electronics Limited",
+      "country": "Hong Kong"
+    },
+    "supplier": {
+      "name": "Harbour Machine Tooling Limited",
+      "country": "Hong Kong",
+      "email": "accounts@harbourtooling.hk"
+    },
+    "payment": {
+      "amount": 386000,
+      "currency": "HKD",
+      "purpose": "CNC mould base refurbishment and on-site setup",
+      "requested_method": "CHATS_RTGS",
+      "beneficiary_name": "Harbour Machine Tooling Limited",
+      "destination": {
+        "bank_name": "HSBC Hong Kong",
+        "account_number": "742-833221-001",
+        "bank_code": "004",
+        "branch_code": "742"
+      }
+    },
+    "risk_signals": {
+      "urgency_language": false,
+      "pressure_language": false,
+      "secrecy_language": false,
+      "payment_details_changed": false
+    }
+  },
+  "08_traditional_SWIFT.pdf": {
+    "invoice_number": "TMB-2026-0877",
+    "due_date": "2026-06-21",
+    "payer": {
+      "name": "HarbourTech Electronics Limited",
+      "country": "Hong Kong"
+    },
+    "supplier": {
+      "name": "Tokyo Microboards Co., Ltd.",
+      "country": "Japan",
+      "email": "billing@tokyomicroboards.jp"
+    },
+    "payment": {
+      "amount": 1285000,
+      "currency": "JPY",
+      "purpose": "Rigid-flex PCB assembly and export packaging",
+      "requested_method": "SWIFT",
+      "beneficiary_name": "Tokyo Microboards Co., Ltd.",
+      "destination": {
+        "account_number": "0019347281",
+        "swift_bic": "BOTKJPJT",
+        "bank_name": "MUFG Bank, Ltd."
+      }
+    },
+    "risk_signals": {
+      "urgency_language": false,
+      "pressure_language": false,
+      "secrecy_language": false,
+      "payment_details_changed": false
+    }
+  }
+}

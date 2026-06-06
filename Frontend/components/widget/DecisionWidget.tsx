@@ -20,7 +20,7 @@ const ANALYSIS_STEPS = [
   "Comparing payment rails",
 ];
 
-export function DecisionWidget() {
+export function DecisionWidget({ wide = false }: { wide?: boolean }) {
   const [step, setStep] = useState<Step>("select");
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -45,7 +45,7 @@ export function DecisionWidget() {
 
   return (
     <div className="w-full rounded-[28px] bg-white p-2 shadow-[0_30px_80px_-20px_rgba(80,70,120,0.45)] ring-1 ring-black/5">
-      <div className="rounded-[22px] bg-bg/60 p-4 sm:p-5">
+      <div className={`rounded-[22px] bg-bg/60 ${wide ? "p-5 sm:p-8" : "p-4 sm:p-5"}`}>
         {/* widget header */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -65,7 +65,7 @@ export function DecisionWidget() {
         <AnimatePresence mode="wait">
           {step === "select" && (
             <StepShell key="select">
-              <SelectStep onSelect={start} />
+              <SelectStep onSelect={start} wide={wide} />
             </StepShell>
           )}
           {step === "analyzing" && (
@@ -118,13 +118,19 @@ function StepShell({ children }: { children: React.ReactNode }) {
 
 /* ----------------------------- Select ----------------------------- */
 
-function SelectStep({ onSelect }: { onSelect: (inv: Invoice) => void }) {
+function SelectStep({
+  onSelect,
+  wide = false,
+}: {
+  onSelect: (inv: Invoice) => void;
+  wide?: boolean;
+}) {
   return (
     <div>
       <p className="mb-3 text-sm text-muted">
         Pick a sample supplier invoice to route — or paste your own.
       </p>
-      <div className="grid grid-cols-1 gap-2">
+      <div className={`grid gap-2 ${wide ? "sm:grid-cols-2" : "grid-cols-1"}`}>
         {SAMPLE_INVOICES.map((inv) => {
           const meta = SAMPLE_META[inv.id];
           return (

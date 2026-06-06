@@ -6,25 +6,16 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ExtractionService } from '../extraction/extraction.service';
-import { RiskScoreService } from '../risk-score/risk-score.service';
-
-type UploadedPdf = {
-  buffer?: Buffer;
-  mimetype?: string;
-  originalname?: string;
-};
+import { InvoicesService } from './invoices.service';
+import type { UploadedPdf } from './invoice-analysis.types';
 
 @Controller('invoices')
 export class InvoicesController {
-  constructor(
-    private readonly extractionService: ExtractionService,
-    private readonly riskScoreService: RiskScoreService,
-  ) {}
+  constructor(private readonly invoicesService: InvoicesService) {}
 
-  @Post('extract')
+  @Post('analyze')
   @UseInterceptors(FileInterceptor('pdf'))
-  async extractInvoice(@UploadedFile() pdf?: UploadedPdf) {
+  async analyzeInvoice(@UploadedFile() pdf?: UploadedPdf) {
     if (!pdf?.buffer) {
       throw new BadRequestException('PDF file is required in the "pdf" field.');
     }
@@ -33,14 +24,6 @@ export class InvoicesController {
       throw new BadRequestException('Uploaded file must be a PDF.');
     }
 
-    const invoice = await this.extractionService.extractInvoiceFromPdf(
-      new Uint8Array(pdf.buffer),
-    );
-    const riskScore = this.riskScoreService.calculateRiskScore(invoice);
-
-    return {
-      invoice,
-      risk_score: riskScore,
-    };
+    return this.invoicesService.analyzeInvoicePdf(pdf.buffer);
   }
 }

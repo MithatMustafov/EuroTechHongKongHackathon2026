@@ -1,11 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Invoice } from '../common/types/invoice.types';
-import type {
-  RiskDecision,
-  RiskLevel,
-  RiskReason,
-  RiskScore,
-} from './risk-score.types';
+import type { RiskLevel, RiskReason, RiskScore } from './risk-score.types';
 
 @Injectable()
 export class RiskScoreService {
@@ -83,12 +78,10 @@ export class RiskScoreService {
 
     score = Math.min(score, 100);
     const level = getRiskLevel(score);
-    const decision = getRiskDecision(score);
 
     return {
       score,
       level,
-      decision,
       summary: buildRiskSummary(level, reasons),
       reasons: reasons.sort(compareReasonSeverity),
     };
@@ -138,22 +131,6 @@ function getRiskLevel(score: number): RiskLevel {
   }
 
   return 'LOW';
-}
-
-function getRiskDecision(score: number): RiskDecision {
-  if (score >= 95) {
-    return 'BLOCK';
-  }
-
-  if (score >= 60) {
-    return 'HOLD';
-  }
-
-  if (score >= 30) {
-    return 'WARN';
-  }
-
-  return 'PASS';
 }
 
 function buildRiskSummary(level: RiskLevel, reasons: RiskReason[]): string {

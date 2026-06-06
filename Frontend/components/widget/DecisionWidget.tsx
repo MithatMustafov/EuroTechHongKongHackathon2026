@@ -11,6 +11,7 @@ import { ComplianceChecklist } from "./ComplianceChecklist";
 import { RailCard } from "./RailCard";
 import { RailSettlement } from "./RailSettlement";
 import { StablecoinSettlement, type SettlementResult } from "./StablecoinSettlement";
+import { ReceiptCapture } from "./ReceiptCapture";
 import { explorerTx } from "@/lib/chain/hkdap";
 
 type Step = "select" | "analyzing" | "summary" | "payment" | "receipt" | "review";
@@ -486,6 +487,8 @@ function ReceiptStep({
           ? "Settled live on Sepolia testnet. This is a mock HKDAP token with no value."
           : "Demo: payment execution is visualized. Non-crypto rails are simulated."}
       </p>
+
+      <ReceiptCapture decision={decision} settlement={settlement} />
 
       <button
         onClick={onReset}

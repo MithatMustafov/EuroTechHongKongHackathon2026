@@ -37,13 +37,13 @@ export function Nav() {
         {/* CTA pills */}
         <div className="flex items-center gap-2">
           <a
-            href="#widget"
+            href="/demo"
             className="hidden rounded-pill bg-white px-5 py-3 text-sm font-semibold text-ink shadow-[0_6px_24px_rgba(80,70,120,0.10)] transition hover:-translate-y-0.5 sm:inline-block"
           >
             Try demo
           </a>
           <a
-            href="#widget"
+            href="/demo"
             className="rounded-pill bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
           >
             Get started

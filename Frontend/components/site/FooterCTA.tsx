@@ -18,7 +18,7 @@ export function FooterCTA() {
             The decision layer between every invoice and every payment rail in Hong Kong.
           </p>
           <a
-            href="#widget"
+            href="/demo"
             className="relative mt-8 inline-block rounded-pill bg-white px-7 py-3.5 text-sm font-semibold text-ink transition hover:-translate-y-0.5"
           >
             Route your first invoice

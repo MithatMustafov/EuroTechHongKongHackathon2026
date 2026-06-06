@@ -48,10 +48,10 @@ export function Hero() {
             </ul>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
-                href="#widget"
+                href="/demo"
                 className="rounded-pill bg-ink px-6 py-3.5 text-sm font-semibold text-white transition hover:-translate-y-0.5"
               >
-                Route an invoice
+                Try the full demo
               </a>
               <a
                 href="#features"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Use first argument as API URL, otherwise default to localhost:3001
-API_URL="${1:-http://localhost:3001/invoices/extract}"
+# Use first argument as API URL, otherwise default to the new analyze endpoint
+API_URL="${1:-http://localhost:3001/invoices/analyze}"
 
 # Get the folder where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,15 +25,22 @@ for file in "${PDF_FILES[@]}"; do
   echo "Testing: $filename"
   echo "======================================"
 
+  response="$(curl -s -X POST -F "pdf=@$file" "$API_URL")"
+
   if command -v jq >/dev/null 2>&1; then
-    response="$(curl -s -X POST -F "pdf=@$file" "$API_URL")"
     echo "Invoice:"
     echo "$response" | jq .invoice
+
     echo "Risk score:"
     echo "$response" | jq .risk_score
+
+    echo "Rail decision:"
+    echo "$response" | jq .rail_decision
+
+    echo "Final decision:"
+    echo "$response" | jq .final_decision
   else
-    curl -s -X POST -F "pdf=@$file" "$API_URL"
-    echo ""
+    echo "$response"
   fi
 
   echo ""

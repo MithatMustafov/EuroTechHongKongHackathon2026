@@ -7,7 +7,12 @@ import { RiskScoreModule } from './risk-score/risk-score.module';
 import { RailDecisionModule } from './rail-decision/rail-decision.module';
 
 @Module({
-  imports: [InvoicesModule, ExtractionModule, RiskScoreModule, RailDecisionModule],
+  imports: [
+    InvoicesModule,
+    ExtractionModule,
+    RiskScoreModule,
+    RailDecisionModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -16,7 +16,9 @@ describe('AppController', () => {
 
   describe('root', () => {
     it('should return the hackathon greeting', () => {
-      expect(appController.getHello()).toBe('Hello, EuroTech Hong Kong Hackathon 2026');
+      expect(appController.getHello()).toBe(
+        'Hello, EuroTech Hong Kong Hackathon 2026',
+      );
     });
   });
 });

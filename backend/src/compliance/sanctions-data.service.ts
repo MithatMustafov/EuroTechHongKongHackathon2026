@@ -17,30 +17,32 @@ export class SanctionsDataService implements OnModuleInit {
     this.logger.log(`Loaded ${this.names.length} sanctioned names from local data`);
   }
 
-  /** Returns the number of sanction list hits for a given query name. */
-  screen(query: string): number {
+  /** Returns the sanctioned names that matched the query. */
+  screen(query: string): string[] {
     const q = this.normalize(query);
-    if (q.length < 4) return 0;
-    let hits = 0;
+    if (q.length < 4) return [];
+    const matched: string[] = [];
     for (const name of this.names) {
-      if (this.matches(q, name)) hits++;
+      if (this.matches(q, name)) matched.push(name);
     }
-    return hits;
+    return matched;
   }
 
   private matches(q: string, s: string): boolean {
     if (q === s) return true;
-    // containment (both directions, guard against trivial short strings)
-    if (q.length >= 6 && s.includes(q)) return true;
-    if (s.length >= 6 && q.includes(s)) return true;
-    // token overlap: ≥60% of the shorter set's meaningful tokens (≥4 chars) must match
+    // containment: the contained string must be at least 70% as long as the container
+    // to prevent short generic fragments matching long unrelated names
+    const lenRatio = Math.min(q.length, s.length) / Math.max(q.length, s.length);
+    if (q.length >= 8 && s.includes(q) && lenRatio >= 0.7) return true;
+    if (s.length >= 8 && q.includes(s) && lenRatio >= 0.7) return true;
+    // token overlap: require ≥2 meaningful tokens (≥4 chars) on each side,
+    // and ≥65% coverage of BOTH sets — prevents a single common word from matching
     const qToks = q.split(' ').filter(t => t.length >= 4);
     const sToks = s.split(' ').filter(t => t.length >= 4);
-    if (qToks.length === 0 || sToks.length === 0) return false;
+    if (qToks.length < 2 || sToks.length < 2) return false;
     const sSet = new Set(sToks);
     const overlap = qToks.filter(t => sSet.has(t)).length;
-    const shorter = Math.min(qToks.length, sToks.length);
-    return overlap / shorter >= 0.6;
+    return overlap / qToks.length >= 0.65 && overlap / sToks.length >= 0.65;
   }
 
   private normalize(s: string): string {

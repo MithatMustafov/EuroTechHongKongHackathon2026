@@ -3,6 +3,7 @@ export type CheckStatus = 'passed' | 'requires_review' | 'failed';
 export interface SanctionsScreen {
   query: string;
   hits: number;
+  matches: string[];
 }
 
 export interface PepScreen {

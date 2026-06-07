@@ -16,10 +16,10 @@ export class SanctionsCheck {
 
     const uniqueEntities = [...new Set(entities)];
 
-    const screens: SanctionsScreen[] = uniqueEntities.map(name => ({
-      query: name,
-      hits: this.sanctionsData.screen(name),
-    }));
+    const screens: SanctionsScreen[] = uniqueEntities.map(name => {
+      const matches = this.sanctionsData.screen(name);
+      return { query: name, hits: matches.length, matches };
+    });
 
     const anyHit = screens.some(s => s.hits > 0);
     const status = anyHit ? 'failed' : 'passed';

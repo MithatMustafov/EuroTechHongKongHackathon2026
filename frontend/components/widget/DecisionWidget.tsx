@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { analyze } from "@/lib/engine";
 import type { Decision, Invoice } from "@/lib/engine/types";
 import { SAMPLE_INVOICES, SAMPLE_META } from "@/lib/data/sample_invoices";
+import { analyzeWithBackend, analyzePdfWithBackend } from "@/lib/api/backend";
+import type { AnalysisResult } from "@/lib/api/backend";
 import { formatAmount } from "@/lib/utils";
 import { FraudMeter } from "./FraudMeter";
 import { ComplianceChecklist } from "./ComplianceChecklist";
@@ -13,15 +14,16 @@ import { RailSettlement } from "./RailSettlement";
 import { StablecoinSettlement, type SettlementResult } from "./StablecoinSettlement";
 import { ReceiptCapture } from "./ReceiptCapture";
 import { explorerTx } from "@/lib/chain/hkdap";
+import { downloadDecisionReport } from "@/lib/pdf/report";
 
 type Step = "select" | "analyzing" | "summary" | "payment" | "receipt" | "review";
 
-const ANALYSIS_STEPS = [
-  "Extracting invoice details",
-  "Checking supplier identity",
-  "Scanning for fraud patterns",
-  "Running compliance checks",
-  "Comparing payment rails",
+const ANALYSIS_STEPS: { label: string; ms: number }[] = [
+  { label: "Extracting invoice details",  ms: 800  },
+  { label: "Checking supplier identity",  ms: 650  },
+  { label: "Scanning for fraud patterns", ms: 950  },
+  { label: "Running compliance checks",   ms: 1100 },
+  { label: "Comparing payment rails",     ms: 700  },
 ];
 
 export function DecisionWidget({ wide = false }: { wide?: boolean }) {
@@ -31,26 +33,59 @@ export function DecisionWidget({ wide = false }: { wide?: boolean }) {
   const [settlement, setSettlement] = useState<SettlementResult | null>(null);
   const [simulateStablecoin, setSimulateStablecoin] = useState(false);
 
+  // Holds the in-flight backend promise so animation and API call run in parallel.
+  const pendingDecision = useRef<Promise<AnalysisResult> | null>(null);
+  const [analysisLive, setAnalysisLive] = useState<boolean | null>(null);
+
   const start = useCallback((inv: Invoice) => {
     setInvoice(inv);
     setDecision(null);
     setSettlement(null);
     setSimulateStablecoin(false);
+    pendingDecision.current = analyzeWithBackend(inv);
+    setStep("analyzing");
+  }, []);
+
+  const startWithDecision = useCallback((inv: Invoice, dec: Decision) => {
+    pendingDecision.current = null;
+    setInvoice(inv);
+    setDecision(dec);
+    setAnalysisLive(true);
+    setSettlement(null);
+    setSimulateStablecoin(false);
+    setStep("summary");
+  }, []);
+
+  const startWithDecisionAnimated = useCallback((inv: Invoice, dec: Decision) => {
+    setInvoice(inv);
+    setDecision(null);
+    setSettlement(null);
+    setSimulateStablecoin(false);
+    pendingDecision.current = Promise.resolve({ decision: dec, live: true });
     setStep("analyzing");
   }, []);
 
   const reset = useCallback(() => {
+    pendingDecision.current = null;
     setStep("select");
     setInvoice(null);
     setDecision(null);
+    setAnalysisLive(null);
     setSettlement(null);
     setSimulateStablecoin(false);
   }, []);
 
   const onAnalysisDone = useCallback(() => {
-    if (!invoice) return;
-    setDecision(analyze(invoice));
-    setStep("summary");
+    if (!invoice || !pendingDecision.current) return;
+    const promise = pendingDecision.current;
+    promise.then(({ decision: d, live }) => {
+      // Ignore stale results if the user reset before the backend responded.
+      if (pendingDecision.current === promise) {
+        setDecision(d);
+        setAnalysisLive(live);
+        setStep("summary");
+      }
+    });
   }, [invoice]);
 
   return (
@@ -61,6 +96,16 @@ export function DecisionWidget({ wide = false }: { wide?: boolean }) {
           <div className="flex items-center gap-2">
             <span className="inline-block h-2 w-2 rounded-full bg-brand-2" />
             <span className="text-sm font-semibold">Payrouter decision</span>
+            {analysisLive === true && (
+              <span className="rounded-pill bg-ok/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
+                Live
+              </span>
+            )}
+            {analysisLive === false && (
+              <span className="rounded-pill bg-warn/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warn">
+                Local — start backend
+              </span>
+            )}
           </div>
           {step !== "select" && (
             <button
@@ -75,7 +120,7 @@ export function DecisionWidget({ wide = false }: { wide?: boolean }) {
         <AnimatePresence mode="wait">
           {step === "select" && (
             <StepShell key="select">
-              <SelectStep onSelect={start} wide={wide} />
+              <SelectStep onSelect={start} onStartWithDecision={startWithDecision} onStartWithDecisionAnimated={startWithDecisionAnimated} wide={wide} />
             </StepShell>
           )}
           {step === "analyzing" && (
@@ -143,9 +188,13 @@ function StepShell({ children }: { children: React.ReactNode }) {
 
 function SelectStep({
   onSelect,
+  onStartWithDecision,
+  onStartWithDecisionAnimated,
   wide = false,
 }: {
   onSelect: (inv: Invoice) => void;
+  onStartWithDecision: (inv: Invoice, dec: Decision) => void;
+  onStartWithDecisionAnimated: (inv: Invoice, dec: Decision) => void;
   wide?: boolean;
 }) {
   return (
@@ -175,18 +224,28 @@ function SelectStep({
           );
         })}
       </div>
-      <UploadAffordance onSelect={onSelect} />
+      <UploadAffordance onSelect={onSelect} onStartWithDecision={onStartWithDecision} onStartWithDecisionAnimated={onStartWithDecisionAnimated} />
     </div>
   );
 }
 
-function UploadAffordance({ onSelect }: { onSelect: (inv: Invoice) => void }) {
-  const [open, setOpen] = useState(false);
+function UploadAffordance({
+  onSelect,
+  onStartWithDecision,
+  onStartWithDecisionAnimated,
+}: {
+  onSelect: (inv: Invoice) => void;
+  onStartWithDecision: (inv: Invoice, dec: Decision) => void;
+  onStartWithDecisionAnimated: (inv: Invoice, dec: Decision) => void;
+}) {
+  const [mode, setMode] = useState<"closed" | "paste" | "uploading" | "ready">("closed");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [readyData, setReadyData] = useState<{ invoice: Invoice; decision: Decision } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  async function handleParse() {
+  async function handlePaste() {
     setBusy(true);
     setNote(null);
     try {
@@ -211,42 +270,121 @@ function UploadAffordance({ onSelect }: { onSelect: (inv: Invoice) => void }) {
     }
   }
 
-  if (!open) {
+  async function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMode("uploading");
+    setNote(null);
+    try {
+      const { invoice, decision } = await analyzePdfWithBackend(file);
+      setReadyData({ invoice, decision });
+      setMode("ready");
+    } catch (err) {
+      setNote(
+        err instanceof Error ? err.message : "PDF analysis failed. Try again.",
+      );
+      setMode("closed");
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  if (mode === "uploading") {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="mt-3 w-full rounded-2xl border border-dashed border-line py-3 text-sm font-medium text-muted transition hover:border-ink/30 hover:text-ink"
+      <div className="mt-3 flex items-center gap-3 rounded-2xl border border-line bg-white p-4 text-sm text-muted">
+        <motion.span
+          className="h-4 w-4 rounded-full border-2 border-ink border-t-transparent"
+          animate={{ rotate: 360 }}
+          transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+        />
+        Reading PDF…
+        {note && <span className="ml-auto text-xs text-danger">{note}</span>}
+      </div>
+    );
+  }
+
+  if (mode === "ready" && readyData) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="mt-3 space-y-2"
       >
-        + Paste / upload your own invoice
-      </button>
+        <div className="rounded-2xl border border-line bg-white px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted mb-1">Invoice loaded</p>
+          <p className="text-sm font-semibold text-ink">{readyData.invoice.supplierName}</p>
+          <p className="text-xs text-muted">
+            {formatAmount(readyData.invoice.amount, readyData.invoice.currency)} · {readyData.invoice.supplierCountry}
+          </p>
+        </div>
+        <button
+          onClick={() => onStartWithDecisionAnimated(readyData.invoice, readyData.decision)}
+          className="w-full rounded-pill bg-brand-2 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-md"
+        >
+          Analyze Transfer →
+        </button>
+        <button
+          onClick={() => { setMode("closed"); setReadyData(null); }}
+          className="w-full rounded-pill bg-bg py-2 text-xs font-medium text-muted transition hover:text-ink"
+        >
+          Upload a different file
+        </button>
+      </motion.div>
+    );
+  }
+
+  if (mode === "paste") {
+    return (
+      <div className="mt-3 rounded-2xl border border-line bg-white p-3">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={4}
+          placeholder="Paste invoice text here…"
+          className="w-full resize-none rounded-xl bg-bg p-2 text-sm outline-none placeholder:text-muted/70"
+        />
+        {note && <p className="mt-2 text-xs text-warn">{note}</p>}
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={handlePaste}
+            disabled={busy || text.trim().length < 5}
+            className="flex-1 rounded-pill bg-ink py-2 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            {busy ? "Extracting…" : "Analyze invoice"}
+          </button>
+          <button
+            onClick={() => setMode("closed")}
+            className="rounded-pill bg-bg px-4 py-2 text-sm font-medium text-muted"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="mt-3 rounded-2xl border border-line bg-white p-3">
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={4}
-        placeholder="Paste invoice text here…"
-        className="w-full resize-none rounded-xl bg-bg p-2 text-sm outline-none placeholder:text-muted/70"
+    <div className="mt-3 flex gap-2">
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        className="hidden"
+        onChange={handlePdfChange}
       />
-      {note && <p className="mt-2 text-xs text-warn">{note}</p>}
-      <div className="mt-2 flex gap-2">
-        <button
-          onClick={handleParse}
-          disabled={busy || text.trim().length < 5}
-          className="flex-1 rounded-pill bg-ink py-2 text-sm font-semibold text-white disabled:opacity-40"
-        >
-          {busy ? "Extracting…" : "Analyze invoice"}
-        </button>
-        <button
-          onClick={() => setOpen(false)}
-          className="rounded-pill bg-bg px-4 py-2 text-sm font-medium text-muted"
-        >
-          Cancel
-        </button>
-      </div>
+      <button
+        onClick={() => fileRef.current?.click()}
+        className="flex-1 rounded-2xl border border-dashed border-line py-3 text-sm font-medium text-muted transition hover:border-ink/30 hover:text-ink"
+      >
+        ↑ Upload PDF invoice
+      </button>
+      <button
+        onClick={() => setMode("paste")}
+        className="flex-1 rounded-2xl border border-dashed border-line py-3 text-sm font-medium text-muted transition hover:border-ink/30 hover:text-ink"
+      >
+        + Paste invoice text
+      </button>
     </div>
   );
 }
@@ -258,49 +396,86 @@ function AnalyzingStep({ invoice, onDone }: { invoice: Invoice; onDone: () => vo
 
   useEffect(() => {
     if (active >= ANALYSIS_STEPS.length) {
-      const t = setTimeout(onDone, 450);
+      const t = setTimeout(onDone, 500);
       return () => clearTimeout(t);
     }
-    const t = setTimeout(() => setActive((a) => a + 1), 620);
+    const t = setTimeout(() => setActive((a) => a + 1), ANALYSIS_STEPS[active].ms);
     return () => clearTimeout(t);
   }, [active, onDone]);
 
   return (
     <div className="py-2">
       <p className="mb-4 text-sm text-muted">
-        Analyzing invoice from <span className="font-semibold text-ink">{invoice.supplierName}</span>…
+        Analyzing invoice from{" "}
+        <span className="font-semibold text-ink">{invoice.supplierName}</span>…
       </p>
-      <ul className="space-y-3">
-        {ANALYSIS_STEPS.map((label, i) => {
+      <ul className="space-y-2.5">
+        {ANALYSIS_STEPS.map(({ label, ms }, i) => {
           const done = i < active;
           const current = i === active;
           return (
-            <li key={label} className="flex items-center gap-3 text-sm">
-              <span
-                className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${
-                  done
-                    ? "bg-brand-2 text-white"
-                    : current
-                      ? "bg-ink text-white"
-                      : "bg-line text-muted"
-                }`}
-              >
-                {done ? "✓" : current ? "" : ""}
+            <motion.li
+              key={label}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: done ? 0.55 : current ? 1 : 0.35, y: 0 }}
+              transition={{ duration: 0.35, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+              className="flex items-center gap-3 text-sm"
+            >
+              {/* Step icon */}
+              <span className="relative h-5 w-5 shrink-0">
+                <AnimatePresence mode="wait">
+                  {done ? (
+                    <motion.span
+                      key="done"
+                      initial={{ scale: 0, rotate: -90 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 480, damping: 22 }}
+                      className="absolute inset-0 flex items-center justify-center rounded-full bg-brand-2 text-[11px] text-white"
+                    >
+                      ✓
+                    </motion.span>
+                  ) : current ? (
+                    <motion.span
+                      key="spinning"
+                      initial={{ scale: 0.4, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.4, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute inset-0 rounded-full border-2 border-ink border-t-transparent animate-spin"
+                    />
+                  ) : (
+                    <motion.span
+                      key="pending"
+                      className="absolute inset-0 rounded-full bg-line"
+                    />
+                  )}
+                </AnimatePresence>
               </span>
-              <span className={done || current ? "text-ink" : "text-muted"}>{label}</span>
-              {current && (
-                <motion.span
-                  className="ml-auto h-1.5 w-16 overflow-hidden rounded-pill bg-line"
-                >
+
+              {/* Label */}
+              <span className={current ? "font-medium text-ink" : "text-ink/80"}>{label}</span>
+
+              {/* Progress bar — only for current step */}
+              <AnimatePresence>
+                {current && (
                   <motion.span
-                    className="block h-full bg-ink"
-                    initial={{ width: 0 }}
-                    animate={{ width: "100%" }}
-                    transition={{ duration: 0.6 }}
-                  />
-                </motion.span>
-              )}
-            </li>
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: 56 }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="ml-auto h-1.5 shrink-0 overflow-hidden rounded-pill bg-line"
+                  >
+                    <motion.span
+                      className="block h-full rounded-pill bg-ink"
+                      initial={{ width: "0%" }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: ms / 1000 - 0.15, ease: "linear" }}
+                    />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.li>
           );
         })}
       </ul>
@@ -321,54 +496,107 @@ function SummaryStep({
 }) {
   const { invoice, fraud, compliance, rails } = decision;
   const held = decision.action === "hold_payment";
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      await downloadDecisionReport(decision);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  const railCards = rails
+    .filter((r) => r.rail !== "HOLD_OR_BLOCK")
+    .slice()
+    .sort((a, b) => statusRank(a.status) - statusRank(b.status));
+
+  const recommendedRail = railCards.find((r) => r.status === "recommended");
+
+  const fadeUp = (delay: number) => ({
+    initial: { opacity: 0, y: 14 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] as const },
+  });
 
   return (
     <div className="space-y-4">
-      <Section title="Invoice">
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-          <Field label="Supplier" value={invoice.supplierName} />
-          <Field label="Country" value={invoice.supplierCountry} />
-          <Field label="Amount" value={formatAmount(invoice.amount, invoice.currency)} />
-          <Field label="Invoice" value={invoice.invoiceNumber} />
-        </dl>
-      </Section>
+      {/* 1 — Invoice */}
+      <motion.div {...fadeUp(0)}>
+        <Section title="Invoice">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+            <Field label="Supplier" value={invoice.supplierName} />
+            <Field label="Country" value={invoice.supplierCountry} />
+            <Field label="Amount" value={formatAmount(invoice.amount, invoice.currency)} />
+            <Field label="Invoice #" value={invoice.invoiceNumber} />
+            {invoice.goods && <Field label="Goods" value={invoice.goods} />}
+            {invoice.dueDate && <Field label="Due date" value={invoice.dueDate} />}
+          </dl>
+        </Section>
+      </motion.div>
 
-      <Section title="Fraud check">
-        <FraudMeter fraud={fraud} />
-      </Section>
+      {/* 2 — Fraud check */}
+      <motion.div {...fadeUp(0.12)}>
+        <Section title="Fraud check">
+          <FraudMeter fraud={fraud} />
+        </Section>
+      </motion.div>
 
-      <Section title={`Compliance · ${compliance.status}`}>
-        <ComplianceChecklist compliance={compliance} />
-      </Section>
+      {/* 3 — Compliance */}
+      <motion.div {...fadeUp(0.22)}>
+        <Section title={`Compliance · ${compliance.status}`}>
+          <ComplianceChecklist compliance={compliance} />
+        </Section>
+      </motion.div>
 
-      <Section title="Rail recommendation">
-        <div className="space-y-2">
-          {rails
-            .slice()
-            .sort((a, b) => statusRank(a.status) - statusRank(b.status))
-            .map((o) => (
-              <RailCard key={o.rail} option={o} />
+      {/* 4 — Rail comparison (cards) */}
+      <motion.div {...fadeUp(0.32)}>
+        <Section title="Rail comparison">
+          <div className="space-y-2">
+            {railCards.map((r) => (
+              <RailCard key={r.rail} option={r} />
             ))}
-        </div>
-      </Section>
+          </div>
+        </Section>
+      </motion.div>
 
-      <div className="rounded-2xl bg-white p-3 text-sm text-ink/80">{decision.explanation}</div>
+      <motion.div {...fadeUp(0.42)} className="space-y-2">
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          className="w-full rounded-pill border border-line bg-white py-2.5 text-sm font-medium text-ink/80 transition hover:-translate-y-0.5 hover:border-ink/30 hover:text-ink disabled:opacity-50"
+        >
+          {downloading ? (
+            <span className="flex items-center justify-center gap-2">
+              <motion.span
+                className="inline-block h-3.5 w-3.5 rounded-full border-2 border-ink/40 border-t-ink"
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 0.75, ease: "linear" }}
+              />
+              Generating PDF…
+            </span>
+          ) : (
+            "↓ Download compliance report"
+          )}
+        </button>
 
-      {held ? (
-        <button
-          onClick={onReview}
-          className="w-full rounded-pill bg-danger py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
-        >
-          Hold payment · Create review case
-        </button>
-      ) : (
-        <button
-          onClick={onConfirm}
-          className="w-full rounded-pill bg-ink py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
-        >
-          Confirm payment
-        </button>
-      )}
+        {held ? (
+          <button
+            onClick={onReview}
+            className="w-full rounded-pill bg-danger py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+          >
+            Hold payment · Create review case
+          </button>
+        ) : (
+          <button
+            onClick={onConfirm}
+            className="w-full rounded-pill bg-ink py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+          >
+            Confirm payment via {recommendedRail?.label ?? "selected rail"}
+          </button>
+        )}
+      </motion.div>
     </div>
   );
 }

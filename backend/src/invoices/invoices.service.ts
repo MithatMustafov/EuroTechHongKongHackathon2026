@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ExtractionService } from '../extraction/extraction.service';
 import { RailDecisionService } from '../rail-decision/rail-decision.service';
 import { RiskScoreService } from '../risk-score/risk-score.service';
@@ -9,6 +9,8 @@ import type {
 
 @Injectable()
 export class InvoicesService {
+  private readonly logger = new Logger(InvoicesService.name);
+
   constructor(
     private readonly extractionService: ExtractionService,
     private readonly riskScoreService: RiskScoreService,
@@ -16,13 +18,25 @@ export class InvoicesService {
   ) {}
 
   async analyzeInvoicePdf(pdfBuffer: Buffer): Promise<InvoiceAnalysisResponse> {
+    const t0 = Date.now();
+    this.logger.log('[1/3] Extracting invoice fields from PDF…');
     const invoice = await this.extractionService.extractInvoiceFromPdf(
       new Uint8Array(pdfBuffer),
     );
+    this.logger.log(
+      `[1/3] Extraction done  inv=${invoice.invoice_number ?? 'n/a'}  supplier="${invoice.supplier?.name ?? 'n/a'}"  amount=${invoice.payment?.amount} ${invoice.payment?.currency}`,
+    );
 
+    this.logger.log('[2/3] Scoring risk…');
     const riskScore = this.riskScoreService.calculateRiskScore(invoice);
+    this.logger.log(`[2/3] Risk score=${riskScore.score}  level=${riskScore.level?.toUpperCase() ?? 'n/a'}`);
+
+    this.logger.log('[3/3] Rail decision…');
     const railDecision = this.railDecisionService.decideRail(invoice);
+    this.logger.log(`[3/3] Rail → ${railDecision.recommended_rail}`);
+
     const finalDecision = buildFinalDecision(riskScore, railDecision);
+    this.logger.log(`✓ PDF analysis done  type=${finalDecision.type}  ms=${Date.now() - t0}`);
 
     return {
       invoice,

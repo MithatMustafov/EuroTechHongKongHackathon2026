@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Logger,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -11,6 +12,8 @@ import type { UploadedPdf } from './invoice-analysis.types';
 
 @Controller('invoices')
 export class InvoicesController {
+  private readonly logger = new Logger(InvoicesController.name);
+
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Post('analyze')
@@ -24,6 +27,7 @@ export class InvoicesController {
       throw new BadRequestException('Uploaded file must be a PDF.');
     }
 
+    this.logger.log(`► POST /invoices/analyze  size=${pdf.buffer.length}b  name="${pdf.originalname ?? 'unknown'}"`);
     return this.invoicesService.analyzeInvoicePdf(pdf.buffer);
   }
 }

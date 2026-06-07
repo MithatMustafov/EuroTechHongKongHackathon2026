@@ -67,11 +67,23 @@ export interface FraudResult {
 
 export type CheckStatus = "passed" | "failed" | "review";
 
+export interface SanctionsScreen {
+  entity: string;
+  hits: number;
+  matches?: string[];
+}
+
 export interface ComplianceCheck {
   key: string;
   label: string;
   status: CheckStatus;
   detail: string;
+  /** Extra data surfaced for specific checks (e.g. sanctions entity list). */
+  meta?: {
+    screens?: SanctionsScreen[];
+    pepScreens?: SanctionsScreen[];
+    source?: string;
+  };
 }
 
 export interface ComplianceResult {
@@ -83,11 +95,19 @@ export interface ComplianceResult {
 
 export type RailStatus = "recommended" | "available" | "not_suitable";
 
+export interface RailCost {
+  totalMin: number;
+  totalMax: number;
+  settlementTime: string;
+  fxMarkupPct: number;
+}
+
 export interface RailOption {
   rail: RailId;
   label: string;
   status: RailStatus;
   reason: string;
+  cost?: RailCost;
 }
 
 export type DecisionAction = "confirm_payment" | "hold_payment";

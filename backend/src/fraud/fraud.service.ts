@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AnalyzeInvoiceDto } from '../invoice/dto/analyze-invoice.dto';
 
 export interface FraudResult {
@@ -10,6 +10,8 @@ export interface FraudResult {
 
 @Injectable()
 export class FraudService {
+  private readonly logger = new Logger(FraudService.name);
+
   score(dto: AnalyzeInvoiceDto, amountHkd = 0): FraudResult {
     let score = 0;
     const rules: string[] = [];
@@ -34,6 +36,12 @@ export class FraudService {
       score <= 60 ? 'medium' :
       score <= 85 ? 'high' : 'critical';
 
-    return { score, level, hold_required: score >= 86, triggered_rules: rules };
+    const hold_required = score >= 86;
+    this.logger.log(
+      `  Fraud score=${score}  level=${level.toUpperCase()}  hold=${hold_required}` +
+      (rules.length ? `  rules=[${rules.join(', ')}]` : ''),
+    );
+
+    return { score, level, hold_required, triggered_rules: rules };
   }
 }

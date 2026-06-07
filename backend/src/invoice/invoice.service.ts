@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AnalyzeInvoiceDto } from './dto/analyze-invoice.dto';
 import { ExtractInvoiceDto } from './dto/extract-invoice.dto';
 import { ComplianceService } from '../compliance/compliance.service';
@@ -11,6 +11,8 @@ import { RailName } from '../rail/rail.types';
 
 @Injectable()
 export class InvoiceService {
+  private readonly logger = new Logger(InvoiceService.name);
+
   constructor(
     private readonly complianceService: ComplianceService,
     private readonly fraudService: FraudService,
@@ -22,19 +24,38 @@ export class InvoiceService {
 
   async analyze(dto: AnalyzeInvoiceDto) {
     const analyzedAt = new Date().toISOString();
+    const t0 = Date.now();
+    this.logger.log(`[1/5] Starting analysis for inv=${dto.invoice_number}`);
 
     const compliance = await this.complianceService.runAll(dto);
+    const passedCount = compliance.checks.filter(c => c.status === 'passed').length;
+    const failedCount = compliance.checks.filter(c => c.status === 'failed').length;
+    this.logger.log(
+      `[2/5] Compliance → ${compliance.overall_status.toUpperCase()}  passed=${passedCount}  failed=${failedCount}  hardFail=${compliance.hard_fail}`,
+    );
 
     const currency = dto.payment.currency;
     const fxRate = currency === 'HKD' ? 1 : await this.fxService.getRate(currency, 'HKD');
     const amountHkd = Math.round(dto.payment.amount * fxRate);
+    if (currency !== 'HKD') {
+      this.logger.log(`[FX] ${dto.payment.amount} ${currency} → ${amountHkd} HKD  (rate=${fxRate})`);
+    }
 
     const fraud = this.fraudService.score(dto, amountHkd);
+    this.logger.log(
+      `[3/5] Fraud → score=${fraud.score}  level=${fraud.level.toUpperCase()}  hold=${fraud.hold_required}  rules=[${fraud.triggered_rules.join(', ') || 'none'}]`,
+    );
 
     const recommendation = this.railService.recommend(dto, compliance, fraud, amountHkd);
+    this.logger.log(
+      `[4/5] Rail → recommended=${recommendation.recommended_rail}  reason="${recommendation.reason}"`,
+    );
 
     const railsToEstimate = this.resolveRailsToEstimate(recommendation.recommended_rail);
     const costEstimates = await this.costEstimatorService.estimate(amountHkd, railsToEstimate);
+    this.logger.log(
+      `[5/5] Costs → ${costEstimates.map(c => `${c.rail} HK$${c.total_estimated_hkd.min}–${c.total_estimated_hkd.max}`).join('  ')}`,
+    );
 
     const checksTotal = compliance.checks.length;
     const checksPassed = compliance.checks.filter(c => c.status === 'passed').length;
@@ -66,6 +87,8 @@ export class InvoiceService {
         'RailGuard is a decision support tool. This receipt does not constitute a payment instruction or legal compliance certification.',
     };
 
+    this.logger.log(`✓ Analysis complete  inv=${dto.invoice_number}  ms=${Date.now() - t0}`);
+
     return {
       invoice_number: dto.invoice_number,
       analyzed_at: analyzedAt,
@@ -78,7 +101,10 @@ export class InvoiceService {
   }
 
   async extract(dto: ExtractInvoiceDto): Promise<Partial<AnalyzeInvoiceDto>> {
-    return this.aiService.extractInvoiceFields(dto.file_base64, dto.media_type);
+    this.logger.log('► extract  invoking AI extraction');
+    const result = await this.aiService.extractInvoiceFields(dto.file_base64, dto.media_type);
+    this.logger.log(`✓ extract done  inv=${(result as any).invoice_number ?? 'unknown'}`);
+    return result;
   }
 
   private resolveRailsToEstimate(recommended: string): RailName[] {

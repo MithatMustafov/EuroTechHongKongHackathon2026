@@ -39,7 +39,7 @@ export async function POST(req: Request) {
         {
           content: Buffer.from(pdfBase64, "base64"),
           filename: `payrouter-receipt-${invoiceNumber ?? "receipt"}.pdf`,
-          content_type: "application/pdf",
+          contentType: "application/pdf",
         },
       ],
     });

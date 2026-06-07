@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+
 import { AnalyzeInvoiceDto } from '../invoice/dto/analyze-invoice.dto';
 import { ComplianceReport, ComplianceCheckResult } from './compliance.types';
 import { KycCheck } from './checks/kyc.check';
@@ -15,6 +16,8 @@ const HARD_FAIL_CHECKS = new Set(['SANCTIONS_SCREEN', 'JURISDICTION', 'GOODS_CAT
 
 @Injectable()
 export class ComplianceService {
+  private readonly logger = new Logger(ComplianceService.name);
+
   constructor(
     private readonly kycCheck: KycCheck,
     private readonly kybCheck: KybCheck,
@@ -46,11 +49,14 @@ export class ComplianceService {
       const result = await runner();
       checks.push(result);
 
+      const icon = result.status === 'passed' ? '✓' : result.status === 'failed' ? '✗' : '?';
+      this.logger.log(`  ${icon} ${result.check.padEnd(20)} ${result.status.toUpperCase()}  ${result.detail ?? ''}`);
+
       if (result.status === 'failed' && HARD_FAIL_CHECKS.has(result.check)) {
         hardFail = true;
         overallStatus = 'failed';
-        break;
-      }
+        this.logger.warn(`  ⚡ Hard fail on ${result.check} — will block payment but continuing remaining checks`);
+      } else
 
       if (result.status === 'failed') {
         overallStatus = 'failed';

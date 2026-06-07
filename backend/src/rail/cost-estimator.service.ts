@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { FxService } from '../fx/fx.service';
 import { CostEstimate, RailName } from './rail.types';
 
@@ -19,12 +19,14 @@ const RAIL_FEES: Record<RailName, FeeSpec> = {
 
 @Injectable()
 export class CostEstimatorService {
+  private readonly logger = new Logger(CostEstimatorService.name);
+
   constructor(private readonly fxService: FxService) {}
 
   async estimate(amountHkd: number, rails: RailName[]): Promise<CostEstimate[]> {
     const usdToHkd = await this.fxService.getRate('USD', 'HKD').catch(() => 7.78);
 
-    return rails.map(rail => {
+    const results = rails.map(rail => {
       const fee = RAIL_FEES[rail];
       const fxCostHkd = amountHkd * (fee.fx_markup_pct / 100);
       const intermediaryMin = fee.intermediary_usd[0] * usdToHkd;
@@ -46,5 +48,13 @@ export class CostEstimatorService {
         settlement_time: fee.settlement_time,
       };
     });
+
+    for (const r of results) {
+      this.logger.log(
+        `  ${r.rail.padEnd(12)} HK$${r.total_estimated_hkd.min}–${r.total_estimated_hkd.max}  settle=${r.settlement_time}`,
+      );
+    }
+
+    return results;
   }
 }

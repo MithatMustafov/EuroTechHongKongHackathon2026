@@ -11,6 +11,7 @@ import { HKDAP_ABI, HKDAP_BYTECODE } from "./hkdapArtifact";
 
 export const SEPOLIA_CHAIN_ID = BigInt(11155111);
 export const SEPOLIA_HEX = "0xaa36a7";
+// The compiled ABI JSON has a wider inferred type than InterfaceAbi; safe at runtime.
 const ABI = HKDAP_ABI as unknown as InterfaceAbi;
 const STORE_KEY = "payrouter.hkdap.contract";
 

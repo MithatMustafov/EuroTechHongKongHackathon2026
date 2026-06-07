@@ -2,8 +2,8 @@ import { deepStrictEqual } from 'node:assert';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { inspect } from 'node:util';
-import type { Invoice } from '../src/common/types/invoice.types';
-import { ExtractionService } from '../src/extraction/extraction.service';
+import type { Invoice } from '../src/domain/invoice/invoice.types';
+import { ExtractionService } from '../src/application/extraction/extraction.service';
 
 const expected = JSON.parse(
   readFileSync(join(__dirname, 'expected-extractions.json'), 'utf8'),

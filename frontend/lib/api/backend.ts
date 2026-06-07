@@ -385,11 +385,12 @@ function extractDestination(dest: Record<string, unknown>): string {
   );
 }
 
-const VALID_CURRENCIES = new Set(["HKD", "RMB", "USD", "EUR"]);
+const VALID_CURRENCIES = new Set<Currency>(["HKD", "RMB", "USD", "EUR"]);
 
 function pdfInvoiceToFrontend(inv: PdfAnalysisResponse["invoice"]): Invoice {
-  const currency = VALID_CURRENCIES.has(inv.payment.currency.toUpperCase())
-    ? (inv.payment.currency.toUpperCase() as Currency)
+  const upperCurrency = inv.payment.currency.toUpperCase();
+  const currency: Currency = VALID_CURRENCIES.has(upperCurrency as Currency)
+    ? (upperCurrency as Currency)
     : "HKD";
 
   const senderDomain = inv.supplier.email?.split("@")[1];
@@ -532,12 +533,8 @@ export async function analyzePdfWithBackend(
     const fullData: BackendResponse = await analyzeRes.json();
     return { invoice: frontendInvoice, decision: toDecision(fullData, frontendInvoice) };
   } catch (err) {
-    console.error("[Payrouter] Full compliance call failed after PDF extraction:", err);
-    try {
-      return { invoice: frontendInvoice, decision: pdfResponseToDecision(extracted, frontendInvoice) };
-    } catch {
-      throw err;
-    }
+    console.warn("[Payrouter] Compliance call failed after PDF extraction — falling back to PDF-extracted data:", err);
+    return { invoice: frontendInvoice, decision: pdfResponseToDecision(extracted, frontendInvoice) };
   }
 }
 
@@ -593,7 +590,7 @@ export async function analyzeWithBackend(invoice: Invoice): Promise<AnalysisResu
     const data: BackendResponse = await res.json();
     return { decision: toDecision(data, invoice), live: true };
   } catch (err) {
-    console.error("[Payrouter] Backend call failed — using local engine:", err);
+    console.warn("[Payrouter] Backend unreachable — using local engine:", err);
     return { decision: analyze(invoice), live: false };
   }
 }

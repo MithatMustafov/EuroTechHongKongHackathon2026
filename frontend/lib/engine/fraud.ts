@@ -1,6 +1,11 @@
 import type { FraudResult, FraudSignal, Invoice, RiskLevel, Supplier } from "./types";
 import { deriveSignals } from "./signals";
 
+const SCORE_HOLD      = 86;  // §16 — auto-hold above this
+const SCORE_HIGH      = 60;
+const SCORE_MEDIUM    = 30;
+const SCORE_MAX       = 100;
+
 // Additive weights from the brief (§15).
 const WEIGHTS = {
   newSupplier: 15,
@@ -25,9 +30,9 @@ const LABELS: Record<keyof typeof WEIGHTS, string> = {
 };
 
 function levelFor(score: number): RiskLevel {
-  if (score <= 30) return "low";
-  if (score <= 60) return "medium";
-  if (score <= 85) return "high";
+  if (score <= SCORE_MEDIUM) return "low";
+  if (score <= SCORE_HIGH)   return "medium";
+  if (score <  SCORE_HOLD)   return "high";
   return "critical";
 }
 
@@ -45,8 +50,8 @@ export function scoreFraud(invoice: Invoice, supplier?: Supplier): FraudResult {
 
   let score = signals.reduce((sum, sig) => (sig.hit ? sum + sig.weight : sum), 0);
   // A sanctions hit is an automatic maximum.
-  if (s.sanctionsHit) score = 100;
-  score = Math.min(score, 100);
+  if (s.sanctionsHit) score = SCORE_MAX;
+  score = Math.min(score, SCORE_MAX);
 
   const level = levelFor(score);
 

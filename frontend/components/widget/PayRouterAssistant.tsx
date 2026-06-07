@@ -34,7 +34,7 @@ export function PayRouterAssistant({ decision, onSummaryReady }: Props) {
       });
 
     return () => { cancelled = true; };
-  }, [decision]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [decision, onSummaryReady]);
 
   return (
     <div>

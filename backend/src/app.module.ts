@@ -1,19 +1,13 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { InvoiceModule } from './invoice/invoice.module';
-import { InvoicesModule } from './invoices/invoices.module';
-import { ExtractionModule } from './extraction/extraction.module';
-import { RiskScoreModule } from './risk-score/risk-score.module';
-import { RailDecisionModule } from './rail-decision/rail-decision.module';
+import { InvoiceModule } from './application/invoice/invoice.module';
+import { InvoicesModule } from './application/invoices/invoices.module';
 
 @Module({
   imports: [
-    InvoiceModule,
-    InvoicesModule,
-    ExtractionModule,
-    RiskScoreModule,
-    RailDecisionModule,
+    InvoiceModule,   // JSON analysis pipeline
+    InvoicesModule,  // PDF upload pipeline
   ],
   controllers: [AppController],
   providers: [AppService],

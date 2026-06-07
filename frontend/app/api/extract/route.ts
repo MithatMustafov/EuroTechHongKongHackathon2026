@@ -26,7 +26,6 @@ function heuristicExtract(text: string): Invoice | null {
     lines[0] ??
     "Unknown Supplier";
 
-  const lower = trimmed.toLowerCase();
   const country = /hong kong|\.hk|fps/i.test(trimmed)
     ? "Hong Kong"
     : /shenzhen|mainland|rmb|china/i.test(trimmed)
@@ -45,7 +44,7 @@ function heuristicExtract(text: string): Invoice | null {
     paymentDestination: destination,
     senderDomain: domainMatch?.[1],
     rawText: trimmed,
-    paymentDetailsChanged: /changed|new wallet|new account/i.test(lower),
+    paymentDetailsChanged: /changed|new wallet|new account/i.test(trimmed.toLowerCase()),
     acceptsStablecoin: !!walletMatch,
   };
 }
@@ -83,6 +82,13 @@ export async function POST(req: Request) {
   return NextResponse.json({ invoice, source: "heuristic" });
 }
 
+function extractJsonObject(text: string): string {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return "";
+  return text.slice(start, end + 1);
+}
+
 /** Extraction-only LLM call (the engine still makes every scoring/routing decision). */
 async function llmExtract(text: string, apiKey: string): Promise<Invoice | null> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -106,7 +112,7 @@ async function llmExtract(text: string, apiKey: string): Promise<Invoice | null>
   if (!res.ok) return null;
   const data = await res.json();
   const raw = data?.content?.[0]?.text ?? "";
-  const json = raw.match(/\{[\s\S]*\}/)?.[0];
+  const json = extractJsonObject(raw);
   if (!json) return null;
   const parsed = JSON.parse(json);
   return {

@@ -8,6 +8,11 @@ import type {
 } from "./types";
 import { RAIL_LABELS } from "./types";
 
+const SCORE_HOLD         = 86;   // §16 — auto-hold threshold (mirrors fraud.ts)
+const SCORE_LOW          = 30;   // stablecoin eligibility ceiling
+const FPS_MAX_HKD        = 100_000;  // FPS suitable below this amount
+const CHATS_MIN_HKD      = 100_000;  // CHATS / RTGS suitable at or above this
+
 function isHK(country: string): boolean {
   return country.toLowerCase().includes("hong kong");
 }
@@ -26,19 +31,19 @@ export function recommendRail(
   compliance: ComplianceResult,
   supplier?: Supplier,
 ): RailId {
-  if (fraud.score >= 86 || sanctionsFailed(compliance)) return "HOLD_OR_BLOCK";
+  if (fraud.score >= SCORE_HOLD || sanctionsFailed(compliance)) return "HOLD_OR_BLOCK";
 
-  if (isHK(invoice.supplierCountry) && invoice.amount < 100000 && invoice.currency === "HKD")
+  if (isHK(invoice.supplierCountry) && invoice.amount < FPS_MAX_HKD && invoice.currency === "HKD")
     return "FPS";
 
-  if (isHK(invoice.supplierCountry) && invoice.amount >= 100000) return "CHATS_RTGS";
+  if (isHK(invoice.supplierCountry) && invoice.amount >= CHATS_MIN_HKD) return "CHATS_RTGS";
 
   if (isMainland(invoice.supplierCountry) && invoice.currency === "RMB") return "CIPS_RMB";
 
   if (
     supplier?.verifiedStablecoinWallet &&
     invoice.currency === "HKD" &&
-    fraud.score <= 30 &&
+    fraud.score <= SCORE_LOW &&
     compliance.status === "passed" &&
     invoice.amount <= supplier.stablecoinLimit &&
     invoice.acceptsStablecoin
@@ -94,7 +99,7 @@ export function buildRailOptions(
     } else if (
       rail === "HKD_STABLECOIN" &&
       compliance.stablecoinEligible &&
-      fraud.score <= 30 &&
+      fraud.score <= SCORE_LOW &&
       recommended !== "HOLD_OR_BLOCK"
     ) {
       status = "available";

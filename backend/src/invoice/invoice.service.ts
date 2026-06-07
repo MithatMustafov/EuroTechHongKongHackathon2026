@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AnalyzeInvoiceDto } from './dto/analyze-invoice.dto';
 import { ExtractInvoiceDto } from './dto/extract-invoice.dto';
+import { AuditInvoiceDto } from './dto/audit-invoice.dto';
 import { ComplianceService } from '../compliance/compliance.service';
 import { FraudService } from '../fraud/fraud.service';
 import { RailService } from '../rail/rail.service';
@@ -105,6 +106,13 @@ export class InvoiceService {
     const result = await this.aiService.extractInvoiceFields(dto.file_base64, dto.media_type);
     this.logger.log(`✓ extract done  inv=${(result as any).invoice_number ?? 'unknown'}`);
     return result;
+  }
+
+  async audit(dto: AuditInvoiceDto): Promise<{ summary: string }> {
+    this.logger.log(`► audit  inv=${dto.invoice_number}  fraud=${dto.fraud_score}  rail=${dto.recommended_rail}`);
+    const summary = await this.aiService.generateAuditSummary(dto);
+    this.logger.log(`✓ audit done  inv=${dto.invoice_number}`);
+    return { summary };
   }
 
   private resolveRailsToEstimate(recommended: string): RailName[] {

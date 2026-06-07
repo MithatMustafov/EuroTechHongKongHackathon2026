@@ -13,6 +13,7 @@ import { RailCard } from "./RailCard";
 import { RailSettlement } from "./RailSettlement";
 import { StablecoinSettlement, type SettlementResult } from "./StablecoinSettlement";
 import { ReceiptCapture } from "./ReceiptCapture";
+import { PayRouterAssistant } from "./PayRouterAssistant";
 import { explorerTx } from "@/lib/chain/hkdap";
 import { downloadDecisionReport } from "@/lib/pdf/report";
 
@@ -497,11 +498,12 @@ function SummaryStep({
   const { invoice, fraud, compliance, rails } = decision;
   const held = decision.action === "hold_payment";
   const [downloading, setDownloading] = useState(false);
+  const [auditSummary, setAuditSummary] = useState<string | undefined>(undefined);
 
   async function handleDownload() {
     setDownloading(true);
     try {
-      await downloadDecisionReport(decision);
+      await downloadDecisionReport(decision, auditSummary);
     } finally {
       setDownloading(false);
     }
@@ -561,7 +563,12 @@ function SummaryStep({
         </Section>
       </motion.div>
 
-      <motion.div {...fadeUp(0.42)} className="space-y-2">
+      {/* 5 — PayRouter AI audit summary */}
+      <motion.div {...fadeUp(0.4)}>
+        <PayRouterAssistant decision={decision} onSummaryReady={setAuditSummary} />
+      </motion.div>
+
+      <motion.div {...fadeUp(0.5)} className="space-y-2">
         <button
           onClick={handleDownload}
           disabled={downloading}

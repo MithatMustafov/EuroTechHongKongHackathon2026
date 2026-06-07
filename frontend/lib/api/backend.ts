@@ -549,6 +549,39 @@ export interface AnalysisResult {
   live: boolean;
 }
 
+// ── PayRouter audit summary ───────────────────────────────────────────────────
+
+export async function getAuditSummary(decision: Decision): Promise<string> {
+  const body = {
+    invoice_number: decision.invoice.invoiceNumber,
+    supplier_name: decision.invoice.supplierName,
+    supplier_country: decision.invoice.supplierCountry,
+    amount: decision.invoice.amount,
+    currency: decision.invoice.currency,
+    recommended_rail: decision.recommendedRail,
+    rail_reason: decision.explanation,
+    fraud_score: decision.fraud.score,
+    fraud_level: decision.fraud.level,
+    fraud_reasons: decision.fraud.topReasons,
+    compliance_status: decision.compliance.status,
+    compliance_checks: decision.compliance.checks.map((c) => ({
+      check: c.key,
+      status: c.status,
+      detail: c.detail,
+    })),
+    held: decision.action === "hold_payment",
+  };
+
+  const res = await fetch(`${BACKEND_URL}/invoice/audit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Audit summary failed (${res.status})`);
+  const data = await res.json();
+  return data.summary as string;
+}
+
 export async function analyzeWithBackend(invoice: Invoice): Promise<AnalysisResult> {
   try {
     const res = await fetch(`${BACKEND_URL}/invoice/analyze`, {

@@ -37,7 +37,7 @@ function trunc(s: string, max: number) {
   return s.length > max ? s.slice(0, max - 1) + "…" : s;
 }
 
-export async function downloadDecisionReport(decision: Decision): Promise<void> {
+export async function downloadDecisionReport(decision: Decision, auditSummary?: string): Promise<void> {
   const { default: jsPDF } = await import("jspdf");
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -387,6 +387,30 @@ export async function downloadDecisionReport(decision: Decision): Promise<void> 
     doc.line(ML, y + rowH, PW - MR, y + rowH);
     y += rowH;
   });
+
+  // ── AUDIT SUMMARY ─────────────────────────────────────────────────────────────
+
+  if (auditSummary) {
+    y += 4;
+    guard(36);
+    sectionTitle("AUDIT SUMMARY");
+
+    // Subtle bg row for source label
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "bold");
+    tc(C.muted);
+    doc.text("PayRouter AI", ML, y);
+    y += 5;
+
+    // Summary text — wrap to content width
+    const lineH = 5; // mm per line at 8pt / 1.5 leading
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    tc(C.ink);
+    const wrapped = doc.splitTextToSize(auditSummary, CW) as string[];
+    doc.text(wrapped, ML, y, { lineHeightFactor: 1.5 });
+    y += wrapped.length * lineH + 3;
+  }
 
   // ── FOOTER ────────────────────────────────────────────────────────────────────
 

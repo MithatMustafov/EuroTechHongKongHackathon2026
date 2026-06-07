@@ -1,0 +1,73 @@
+import type { Invoice } from "@/lib/engine/types";
+
+// The demo invoices from the brief (§13). Each is crafted to drive a distinct outcome.
+export const SAMPLE_INVOICES: Invoice[] = [
+  {
+    id: "fraud-redirect",
+    supplierName: "Berlin Components GmbH",
+    supplierCountry: "Germany",
+    invoiceNumber: "INV-2026-4472",
+    amount: 42000,
+    currency: "HKD",
+    goods: "Microcontroller components",
+    dueDate: "2026-06-10",
+    paymentDestination: "0xFAKE...",
+    senderDomain: "berlin-component-payments.com",
+    rawText:
+      "URGENT: Our payment wallet has changed. Please send today to avoid shipment cancellation. Do not use the previous payment details. New wallet: 0xFAKE...",
+    paymentDetailsChanged: true,
+    acceptsStablecoin: true,
+  },
+  {
+    id: "local-fps",
+    supplierName: "Kowloon Office Supplies Ltd.",
+    supplierCountry: "Hong Kong",
+    invoiceNumber: "KOS-8841",
+    amount: 8500,
+    currency: "HKD",
+    goods: "Office stationery and supplies",
+    dueDate: "2026-06-12",
+    paymentDestination: "office@kowloon-supplies.hk",
+    senderDomain: "kowloon-supplies.hk",
+    rawText: "Monthly office supplies. Payment via FPS ID office@kowloon-supplies.hk",
+    paymentDetailsChanged: false,
+    acceptsStablecoin: false,
+  },
+  {
+    id: "clean-stablecoin",
+    supplierName: "Berlin Components GmbH",
+    supplierCountry: "Germany",
+    invoiceNumber: "INV-2026-4488",
+    amount: 42000,
+    currency: "HKD",
+    goods: "Microcontroller components",
+    dueDate: "2026-07-05",
+    paymentDestination: "0xSAFE...",
+    senderDomain: "berlin-components.com",
+    rawText: "Microcontroller components. Payment terms: Net 30. Wallet: 0xSAFE...",
+    paymentDetailsChanged: false,
+    acceptsStablecoin: true,
+  },
+  {
+    id: "mainland-rmb",
+    supplierName: "Shenzhen Precision Manufacturing Co.",
+    supplierCountry: "Mainland China",
+    invoiceNumber: "SZ-2026-1190",
+    amount: 200000,
+    currency: "RMB",
+    goods: "Electronic components",
+    dueDate: "2026-06-20",
+    paymentDestination: "CN-RMB-6228480402564890018",
+    senderDomain: "sz-precision.cn",
+    rawText: "Electronic components. Mainland RMB bank account settlement.",
+    paymentDetailsChanged: false,
+    acceptsStablecoin: false,
+  },
+];
+
+export const SAMPLE_META: Record<string, { title: string; tag: string }> = {
+  "fraud-redirect": { title: "Suspicious invoice", tag: "Fraud demo" },
+  "local-fps": { title: "Local HK supplier", tag: "FPS" },
+  "clean-stablecoin": { title: "Verified cross-border", tag: "Stablecoin" },
+  "mainland-rmb": { title: "Mainland supplier", tag: "CIPS / RMB" },
+};
